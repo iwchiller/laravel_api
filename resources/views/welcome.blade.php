@@ -20,6 +20,7 @@
    <li><code>php artisan app:fetch-api incomes</code></li>
    <li><code>php artisan app:fetch-api stocks</code></li>
    <li><code>php artisan app:fetch-api all</code></li>
+
 </ul>
 </body>
 </html>
