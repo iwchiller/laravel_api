@@ -40,10 +40,8 @@ class ProcessFetch implements ShouldQueue
      */
     public function handle(): void
     {
-        //Log::alert("parameters = " . json_encode($this->parameters));
         for ($n = 0; $n < 3; $n++) {
             $response = Http::get($_ENV['HTTP_API_URL'] . $this->folder, $this->parameters);
-
             if ($response->ok()) {
                 break;
             } elseif ($response->tooManyRequests()) {
@@ -95,7 +93,6 @@ class ProcessFetch implements ShouldQueue
         if (is_null($meta)) {
             return -1;
         }
-
         return (int)($meta["last_page"] ?? "-1");
     }
 }
