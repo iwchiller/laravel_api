@@ -33,7 +33,7 @@ return new class extends Migration
             $table->unsignedInteger('sc_code')->nullable();
             $table->string('price', 40)->nullable();
             $table->string('discount', 40)->nullable();
-            $table->unique(['supplier_article', 'is_supply', 'warehouse_name']);
+            $table->unique(['supplier_article', 'barcode', 'is_supply', 'warehouse_name']);
         });
     }
 

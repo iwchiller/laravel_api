@@ -32,6 +32,7 @@ class ProcessFetch implements ShouldQueue
         $this->page_id = $page_id;
         $this->records_limit = $records_limit;
         $this->start_date =  $start_date ?? date("Y-m-d", 0);
+        $this->parameters = $this->create_parameters($this->page_id);
     }
 
     /**
@@ -39,23 +40,20 @@ class ProcessFetch implements ShouldQueue
      */
     public function handle(): void
     {
-        $this->parameters = $this->create_url($this->page_id);
-        Log::alert("parameters = " . json_encode($this->parameters));
+        //Log::alert("parameters = " . json_encode($this->parameters));
         for ($n = 0; $n < 3; $n++) {
             $response = Http::get($_ENV['HTTP_API_URL'] . $this->folder, $this->parameters);
-            if (!$response->ok()) {
-                $response_status = $response->status();
-                Log::alert("responce status = " . $response_status);
-                if ($response_status == 429) {
-                    $response_header = $response->headers();
-                    $sleep_seconds_str = array_first($response_header["Retry-After"]);
-                    $sleep_seconds = intval($sleep_seconds_str);
-                    Log::error("page_id = " . $this->page_id . " sleep seconds = " . $sleep_seconds);
-                    sleep($sleep_seconds + 1);
-                    continue;
-                }
-            } else {
+
+            if ($response->ok()) {
                 break;
+            } elseif ($response->tooManyRequests()) {
+                $response_header = $response->headers();
+                $sleep_seconds_str = array_first($response_header["Retry-After"]);
+                $sleep_seconds = intval($sleep_seconds_str);
+                Log::alert("Страница {$this->page_id}: '429 Too Many Requests' ожидаем {$sleep_seconds_str} секунд");
+                sleep($sleep_seconds + 1);
+            } else {
+                sleep(5);
             }
         }
         $records = $response->json('data');
@@ -70,13 +68,13 @@ class ProcessFetch implements ShouldQueue
                 Income::upsert($records, uniqueBy: ['income_id', 'supplier_article']);
                 break;
             case "stocks":
-                Stock::upsert($records, uniqueBy: ['supplier_article', 'is_supply', 'warehouse_name']);
+                Stock::upsert($records, uniqueBy: ['supplier_article', 'barcode', 'is_supply', 'warehouse_name']);
                 break;
             default: break;
         }
     }
 
-    private function create_url($page_id): array
+    private function create_parameters($page_id): array
     {
         return [
             "dateFrom" => ($this->folder === "stocks" ? date("Y-m-d") : $this->start_date),
@@ -89,7 +87,6 @@ class ProcessFetch implements ShouldQueue
 
     public function get_max_page(): int
     {
-        $this->parameters = $this->create_url(1);
         $response = Http::retry($this->retry_delay_times)->get($_ENV['HTTP_API_URL'] . $this->folder, $this->parameters);
         if (!$response->ok()) {
             return -1;
