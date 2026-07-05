@@ -56,7 +56,7 @@ class FetchApi extends Command
             $this->error("Fetching {$folder_name}: get_max_page error");
             return false;
         }
-        Log::info("{$folder_name}: страниц: {$max_page}, по {$_ENV['HTTP_API_PAGE_LIMIT']} записей");
+        Log::info("Обработка {$folder_name}: страниц {$max_page} по {$_ENV['HTTP_API_PAGE_LIMIT']} записей");
         for ($page = 1; $page <= $max_page; $page++) {
             $api->dispatch($folder_name, $page, $max_date, $_ENV['HTTP_API_PAGE_LIMIT']);
         }

@@ -15,13 +15,12 @@ class ProcessFetch implements ShouldQueue
 {
     use Queueable;
 
-    // Сколько раз и через какие промежутки времени повторять запросы к API в случае ошибки
-    private array $retry_delay_times = [1000, 2000, 3000];
-    protected int $page_id = 1;
-    protected int $records_limit;
-    protected array $parameters;
-    protected string $folder;
-    public string $start_date;
+    private array $retry_delay_times = [1000, 2000, 3000]; // Сколько раз и через какие промежутки времени повторять запросы к API в случае ошибки
+    protected int $page_id = 1; // Номер запрашиваемой страницы
+    protected int $records_limit; // Количество записей на одной странице
+    protected array $parameters; // Полная строка текущего URL-запроса
+    protected string $folder; // Раздел API
+    public string $start_date; // Дата, начиная с которой запрашиваем данные
 
     /**
      * Create a new job instance.
@@ -31,7 +30,7 @@ class ProcessFetch implements ShouldQueue
         $this->folder = $folder;
         $this->page_id = $page_id;
         $this->records_limit = $records_limit;
-        $this->start_date =  $start_date ?? date("Y-m-d", 0);
+        $this->start_date =  $start_date ?? date("Y-m-d", 0); // Если начальная дата не указана (null), запрашиваем все существующие данные
         $this->parameters = $this->create_parameters($this->page_id);
     }
 
@@ -44,13 +43,14 @@ class ProcessFetch implements ShouldQueue
             $response = Http::get($_ENV['HTTP_API_URL'] . $this->folder, $this->parameters);
             if ($response->ok()) {
                 break;
-            } elseif ($response->tooManyRequests()) {
+            } elseif ($response->tooManyRequests()) { // при ответе сервера "HTTP 429" запрашиваем из заголовка количество секунд ожидания перед повторным запросом
                 $response_header = $response->headers();
                 $sleep_seconds_str = array_first($response_header["Retry-After"]);
                 $sleep_seconds = intval($sleep_seconds_str);
                 Log::alert("Страница {$this->page_id}: '429 Too Many Requests' ожидаем {$sleep_seconds_str} секунд");
                 sleep($sleep_seconds + 1);
             } else {
+                // В случае любой другой ошибки ждём 5 секунд перед повторным запросом
                 sleep(5);
             }
         }
@@ -66,7 +66,7 @@ class ProcessFetch implements ShouldQueue
                 Income::upsert($records, uniqueBy: ['income_id', 'supplier_article']);
                 break;
             case "stocks":
-                Stock::upsert($records, uniqueBy: ['supplier_article', 'barcode', 'is_supply', 'warehouse_name']);
+                Stock::upsert($records, uniqueBy: ['hash_sha1']);
                 break;
             default: break;
         }
@@ -74,6 +74,7 @@ class ProcessFetch implements ShouldQueue
 
     private function create_parameters($page_id): array
     {
+        // для раздела socks - данные _ТОЛЬКО_ на сегодняшнюю дату
         return [
             "dateFrom" => ($this->folder === "stocks" ? date("Y-m-d") : $this->start_date),
             "dateTo" => date("Y-m-d"),
@@ -82,7 +83,7 @@ class ProcessFetch implements ShouldQueue
             "limit" => $this->records_limit
         ];
     }
-
+    // Получаем номер последней страницы из JSON по пути: /"meta"/"last_page"
     public function get_max_page(): int
     {
         $response = Http::retry($this->retry_delay_times)->get($_ENV['HTTP_API_URL'] . $this->folder, $this->parameters);
