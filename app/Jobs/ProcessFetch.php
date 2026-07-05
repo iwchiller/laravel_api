@@ -47,7 +47,7 @@ class ProcessFetch implements ShouldQueue
                 $response_header = $response->headers();
                 $sleep_seconds_str = array_first($response_header["Retry-After"]);
                 $sleep_seconds = intval($sleep_seconds_str);
-                Log::alert("Страница {$this->page_id}: '429 Too Many Requests' ожидаем {$sleep_seconds_str} секунд");
+                Log::alert("{$this->folder}, cтраница {$this->page_id}: '429 Too Many Requests' ожидаем {$sleep_seconds_str} секунд");
                 sleep($sleep_seconds + 1);
             } else {
                 // В случае любой другой ошибки ждём 5 секунд перед повторным запросом
