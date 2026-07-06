@@ -33,8 +33,12 @@ return new class extends Migration
             $table->unsignedInteger('sc_code')->nullable();
             $table->string('price', 40)->nullable();
             $table->string('discount', 40)->nullable();
-            $table->string('hash_sha1', 40)->unique();
-//            $table->unique(['supplier_article', 'barcode', 'is_supply', 'warehouse_name']);
+            $table->string('hash_sha1', 40)
+                ->virtualAs('sha1(CONCAT_WS(date, last_change_date, supplier_article,
+                    tech_size, barcode, quantity, is_supply, is_realization, quantity_full,
+	                warehouse_name, in_way_to_client, in_way_from_client, nm_id, subject,
+                    category, brand, sc_code, price, discount))')
+                ->unique();
         });
     }
 
